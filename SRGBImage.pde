@@ -119,7 +119,8 @@ PImage MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
   //丁度90°分しか無いときは対象にする.
   boolean symmetry = tmBinaries.size() == (90 / delta_theta) + 1;
   
-  PImage srgbImage = createImage(181, 360, RGB); //181° * 360°の画像 (入射角は0 ~ 180まで なので)
+  Imagef srgbImage = new Imagef(181, 181); //181° * 181°の画像 (入射角は0 ~ 180まで なので)
+  
   //短波長と長波長, en-st+1 の波長のデータが必要
   int st_lambda = 380, en_lambda = 700;
   //thetaは入射角度を表す.
@@ -148,33 +149,36 @@ PImage MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
     {
       int index = l*360;
       double sum = 0;
+      //全角度で正規化
       for(int phi=0; phi<360; phi++)
       {
         sum += sqrEth[index + phi]; 
       }
       
-      for(int phi=0; phi<360; phi++)
+      //画像にするのは180°まで
+      for(int phi=0; phi<=180; phi++)
       {
         // reflecが theta[deg], l+st_lambda [nm], phi[deg]の時の反射率を表す
         double reflec = sqrEth[index+phi] / sum;
         
-        //ここで, reflecからRGB値を計算して足し合わせる.
-        srgbImage.pixels[ phi*180 + theta] += CalcRGB(reflec, l+st_lambda);
-      }
-    }    
-  }
-  //線形補完
-  for(int phi = 0; phi < 360; phi++){
-    for(int theta = 0; theta < 180; theta+=delta_theta) {
-      int index = phi*180 + theta;
-      for(int i=1; i<delta_theta; i++){
-        float p = 1.0*i/delta_theta;
-        //srgbImage.pixels[ index + i] = (1-p)*srgbImage.pixels[index] + p*srgbImage.pixels[index+delta_theta]; 
+        //reflecからRGB値を計算して足し合わせる.
+        srgbImage.pixels[theta][phi].Add( tr.CalcRGB(reflec, l+st_lambda) );
       }
     }
   }
-  srgbImage.save(parentPath + "/color.bmp");
-  return srgbImage;
+  
+  //線形補完
+  for(int theta = 0; theta < 180; theta+=delta_theta) {
+    for(int phi = 0; phi < 180; phi++){
+      for(int i=1; i<delta_theta; i++){
+        float p = 1.0*i/delta_theta;
+        srgbImage.pixels[theta+i][phi] = Add( Mul(1.0-p, srgbImage.pixels[theta][phi]            ), 
+                                              Mul(    p, srgbImage.pixels[theta+delta_theta][phi]) );
+      }
+    }
+  }
+  srgbImage.ToPImage().save(parentPath + "/color.bmp");
+  return srgbImage.ToPImage();
 }
 
 // TM, TEフォルダのあるディレクトリまでネストしていく
@@ -224,6 +228,8 @@ void SearchBinary(String folderPath)
 }
 
 ColorTransform tr;
+Imagef testImg;
+PImage img;
 void setup()
 {
   tr = new ColorTransform();
@@ -267,22 +273,21 @@ void setup()
   size(400, 400);
   textAlign(CENTER);
   textSize(32);
-  //background(0);
-  //text("drop folder", width/2, height/2);
-  //noLoop();
+  testImg = new Imagef(width, height);
+  for(int i=0; i<testImg.width; i++)
+  {
+    for(int j=0; j<testImg.height; j++)
+    {
+      testImg.pixels[i][j] = tr.CalcRGB(150.0, i+380);//.Mul(255) ;
+      
+    }
+  };
+  img = testImg.ToPImage();
 }
 
-class myColor
-{
-  float r,g,b;
-}
-
-Colorf c = new Colorf();
-Float x=0.0, y=0.0, z=0.0;
 void draw()
 {
   background(0);
-  tr.AddRGB(0.1, 550, c);
-  text(c.r + "\n" + c.g + "\n" + c.b, 100, 100);
+  image(img, 0,0);
 }
 

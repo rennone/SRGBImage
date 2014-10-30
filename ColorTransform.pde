@@ -8,14 +8,17 @@ class ColorTransform
 {  
   HashMap<Integer, Float> R, G, B, S;
   float K;
+  int minLambda, maxLambda;
   
-  public color CalcRGB(double reflec, Integer lambda)
+  public Colorf CalcRGB(double reflec, Integer lambda)
   {
+    if( !S.containsKey(lambda) ) return new Colorf();
+    
     float s = (float)S.get(lambda);
     float r = (float)(K * reflec * R.get(lambda) * s);
     float g = (float)(K * reflec * G.get(lambda) * s);
     float b = (float)(K * reflec * B.get(lambda) * s);
-    return color(r,g,b); 
+    return new Colorf(r,g,b); 
   }
   
   public void AddRGB(double reflec, Integer lambda, Float r, Float g, Float b)
@@ -62,8 +65,10 @@ class ColorTransform
       minY = min( minY, min(r, min(g, b)));
       maxY = max( maxY, max(r, max(g, b)));  
     }  
-    
+    minLambda = (int)minX;
+    maxLambda = (int)maxX;
     K = 200 / K;
+    println(K);
   }
   
   private ColorTransform(ColorTransform c){}
@@ -85,5 +90,5 @@ class ColorTransform
       point(l, height - b);
       point(l, height - s);
     }
-  }  
+  }
 }
