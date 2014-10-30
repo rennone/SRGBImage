@@ -1,3 +1,4 @@
+//左下が原点の画像
 class Imagef
 {
   public Colorf[][] pixels;
@@ -7,6 +8,12 @@ class Imagef
     this.width = row;
     this.height = col;
     pixels = new Colorf[row][col];
+    for(int i=0; i<row; i++){
+      for(int j=0; j<col; j++){
+        pixels[i][j] = new Colorf();
+      }
+    }
+    println("Imagef Constructor");
   }
   
   public PImage ToPImage()
@@ -17,7 +24,11 @@ class Imagef
     {
       for(int j=0; j<this.height; j++)
       {
-        pImage.pixels[j*this.width + i] = color(this.pixels[i][j].r,this.pixels[i][j].g, this.pixels[i][j].b);
+        //PImageは左上が原点なので, jを反転させる
+        pImage.pixels[(this.height-1-j)*this.width + i] = color(
+        (int)(255*this.pixels[i][j].r),
+        (int)(255*this.pixels[i][j].g), 
+        (int)(255*this.pixels[i][j].b));
       }
     }
     return pImage;

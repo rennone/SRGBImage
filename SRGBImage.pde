@@ -15,42 +15,16 @@ import java.io.File;
 import java.io.IOException;  
 import java.util.List;
 import java.util.Arrays;
-
-/*
-void setup()
-{
-  byte b[] = loadBytes("te_0[deg]_380nm_700nm_b.dat");
-  println(b.length);
-  ByteBuffer buffer = ByteBuffer.wrap(b);
-  double[] d = new double[b.length/8];
-  
-  
-  for(int i=0; i<d.length; i++)
-  {
-    d[i] = buffer.order(ByteOrder.LITTLE_ENDIAN).getDouble();  
-  }
-  
-  PrintWriter writer = createWriter("text.txt");
-  
-  int l = 500-380;
-  for(int i=0; i<360; i++)
-  {  
-    writer.println(d[360*l + i]);
-  }
-  writer.close();
-  println(d.length / 360);
-}
-*/
+import java.util.Stack;
 
 DropTarget dropTarget;
 final String Indication = "Drop folder";
 final String Condition  = "Now Calculating";
 
-void draw_progress(int percent)
+class ImageData
 {
-  background(0);
-  text("Now Calculating", width/2, height/2);
-  text(percent+"%", width*3/4, height*3/4);
+  public Imagef image;
+  public String path;
 }
 
 // バイナリからノルム(2乗強度)データを読み込み
@@ -85,16 +59,9 @@ HashMap<String, File> GetBinaryFiles(File f)
   return binaries;
 }
 
-//波長と反射率からRGB値を計算して返す
-color CalcRGB(double reflec, double lambda)
-{
- // throw new exception.
- println("Calc RGB Not Implemented");
- return color(0,0,0); 
-}
 
 // sRGB画像の生成
-PImage MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
+ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
 {
   //TM TEフォルダの中にあるバイナリデータを取得
   HashMap<String, File> tmBinaries = GetBinaryFiles(TMFolder);
@@ -117,16 +84,19 @@ PImage MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
   }
   
   //丁度90°分しか無いときは対象にする.
-  boolean symmetry = tmBinaries.size() == (90 / delta_theta) + 1;
+  boolean symmetry = (tmBinaries.size() == ((90 / delta_theta) + 1));
   
+  println("start transforming " + parentPath);
   Imagef srgbImage = new Imagef(181, 181); //181° * 181°の画像 (入射角は0 ~ 180まで なので)
   
   //短波長と長波長, en-st+1 の波長のデータが必要
   int st_lambda = 380, en_lambda = 700;
+  
+  int en_theta = symmetry ? 90 : 180;
   //thetaは入射角度を表す.
-  for(int theta=0; theta <=180; theta+=delta_theta)
+  for(int theta=0; theta <=en_theta; theta+=delta_theta)
   {
-    String str = (theta-180) + "[deg]_" + st_lambda + "_" + en_lambda + "nm.dat";
+    String str = (theta-180) + "[deg]_" + st_lambda + "nm_" + en_lambda + "nm_b.dat";
     
     //必要なバイナリデータが見つからないとエラー
     if( !tmBinaries.containsKey(str) || !teBinaries.containsKey(str))
@@ -137,16 +107,13 @@ PImage MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
     
     double[] sqrEth = GetNormDataDouble(tmBinaries.get(str).getAbsolutePath());
     double[] sqrEph = GetNormDataDouble(teBinaries.get(str).getAbsolutePath());
-    
+
     //EthとEphを足し合わせる.
-    for(int i=0; i<sqrEth.length; i++)
-    {
+    for(int i=0; i<sqrEth.length; i++){
       sqrEth[i] += sqrEph[i];
     }
-    
     //各派長データを反射角度phiで正規化する.
-    for(int l=0; l<=en_lambda - st_lambda; l++)
-    {
+    for(int l=0; l<=en_lambda - st_lambda; l++){
       int index = l*360;
       double sum = 0;
       //全角度で正規化
@@ -154,22 +121,20 @@ PImage MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
       {
         sum += sqrEth[index + phi]; 
       }
-      
       //画像にするのは180°まで
       for(int phi=0; phi<=180; phi++)
-      {
+      {        
         // reflecが theta[deg], l+st_lambda [nm], phi[deg]の時の反射率を表す
         double reflec = sqrEth[index+phi] / sum;
-        
         //reflecからRGB値を計算して足し合わせる.
         srgbImage.pixels[theta][phi].Add( tr.CalcRGB(reflec, l+st_lambda) );
       }
     }
   }
-  
+
   //線形補完
   for(int theta = 0; theta < 180; theta+=delta_theta) {
-    for(int phi = 0; phi < 180; phi++){
+    for(int phi = 0; phi <= 180; phi++){
       for(int i=1; i<delta_theta; i++){
         float p = 1.0*i/delta_theta;
         srgbImage.pixels[theta+i][phi] = Add( Mul(1.0-p, srgbImage.pixels[theta][phi]            ), 
@@ -177,10 +142,25 @@ PImage MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
       }
     }
   }
-  srgbImage.ToPImage().save(parentPath + "/color.bmp");
-  return srgbImage.ToPImage();
+  
+  if(symmetry)
+  {    
+    for(int theta = 0; theta < 90; theta++){
+      for(int phi = 0; phi <= 180; phi++){
+        srgbImage.pixels[180-theta][180-phi] = srgbImage.pixels[theta][phi];
+      }
+    }
+  }
+  //println("saving");
+  //srgbImage.ToPImage().save(parentPath + "/color.bmp");
+  //println("finish");
+  ImageData data = new ImageData();
+  data.image = srgbImage;
+  data.path  = parentPath;
+  return data;
 }
 
+Stack<ImageData> images = new Stack<ImageData>();
 // TM, TEフォルダのあるディレクトリまでネストしていく
 void SearchBinary(String folderPath)
 {  
@@ -223,13 +203,16 @@ void SearchBinary(String folderPath)
   //どっちも見つかれば, 画像を作る
   if( tmFolder != null && teFolder != null)
   {
-    MakeSRGBImage(tmFolder, teFolder, folderPath);
-  }  
+    ImageData img = MakeSRGBImage(tmFolder, teFolder, folderPath);
+    images.push(img);
+  }
 }
 
 ColorTransform tr;
 Imagef testImg;
 PImage img;
+ImageData image = null;
+boolean saving = false;
 void setup()
 {
   tr = new ColorTransform();
@@ -252,42 +235,66 @@ void setup()
           //
         }
       }
-      if(fileNameList == null)     return;
-      
-      background(0);
-      text("Now Calculating", width/2, height/2);
-      for(File f : fileNameList)
-      {
-        println(f.getName());
+      if(fileNameList == null)     
+      return;
+
+      for(File f : fileNameList){
         if( f.isDirectory() )
         {
           SearchBinary(f.getAbsolutePath());
         }
       }
       
-      //background(0);
-      //text("drop folder", width/2, height/2);
-    }  
+      saving = true;
+    }
   });
   
+  strokeWeight(1);
+  stroke(255);
   size(400, 400);
   textAlign(CENTER);
   textSize(32);
-  testImg = new Imagef(width, height);
-  for(int i=0; i<testImg.width; i++)
-  {
-    for(int j=0; j<testImg.height; j++)
-    {
-      testImg.pixels[i][j] = tr.CalcRGB(150.0, i+380);//.Mul(255) ;
-      
-    }
-  };
-  img = testImg.ToPImage();
 }
 
 void draw()
 {
   background(0);
-  image(img, 0,0);
+  if( !saving ){
+    text(Indication, width/2, height/2);
+    return;
+  }
+  
+  //現在の画像を保存する.  
+  if(image != null)
+  {
+    PImage img = image.image.ToPImage();
+    //img.save(image.path + "/color.bmp");
+    image(img, 0,0, width, height);
+    save(image.path + "/color.bmp");
+    drawFrame();
+    save(image.path + "/frame_color.bmp");
+  }
+  
+  //次の画像がなければDropFolderの状態に戻す.
+  if( images.empty() )
+  {
+    saving = false;
+    return;
+  }
+  
+  //次の画像をとってきてサイズを変える.
+  image = images.pop();
+  resize(2*image.image.width, 2*image.image.height);
+}
+
+//画面を縦横4分割するように線を引く
+void drawFrame()
+{
+  int q_w = width/4;
+  int q_h = height/4;
+  for(int i=1; i<4; i++){
+    line(q_w*i, 0, q_w*i, height);
+    line(0, q_h*i, width, q_h*i);
+  }
 }
 
