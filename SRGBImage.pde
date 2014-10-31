@@ -23,7 +23,7 @@ final String Condition  = "Now Calculating";
 
 class ImageData
 {
-  public Imagef image;
+  public PImage image;
   public String path;
 }
 
@@ -155,8 +155,9 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
   //srgbImage.ToPImage().save(parentPath + "/color.bmp");
   //println("finish");
   ImageData data = new ImageData();
-  data.image = srgbImage;
+  data.image = srgbImage.ToPImage();
   data.path  = parentPath;
+  data.image.save(data.path + "/original_color.bmp");
   return data;
 }
 
@@ -267,7 +268,7 @@ void draw()
   //現在の画像を保存する.  
   if(image != null)
   {
-    PImage img = image.image.ToPImage();
+    PImage img = image.image;
     //img.save(image.path + "/color.bmp");
     image(img, 0,0, width, height);
     save(image.path + "/color.bmp");
