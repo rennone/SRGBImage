@@ -31,8 +31,8 @@ final String Condition  = "Now Calculating";
 ColorTransform tr;
 PImage img;
 boolean saving = false;
-ArrayDeque<ImageData> images = new ArrayDeque<ImageData>();
-ArrayList<ImageData> savedImages = new ArrayList<ImageData>();
+ArrayList<ImageData> images = new ArrayList<ImageData>();
+//ArrayList<ImageData> savedImages = new ArrayList<ImageData>();
 
 // バイナリからノルム(2乗強度)データを読み込み
 double[] GetNormDataDouble(String path)
@@ -214,7 +214,7 @@ void SearchBinary(String folderPath)
 
     if(img !=null){
       synchronized(images){
-        images.addLast(img);
+        images.add(img);
       }      
     }
   }
@@ -272,15 +272,15 @@ void setup()
 ImageData image = null;
 int scale = 2;
 PFrame secondFrame;
+int drawingNo = 0;
 void draw()
 {
   background(0);
-
   
   if( image == null && images.size() == 0)
   {
-    text(images.size() + " is found", width/2, height/2);
-      drawSecond();
+    text(Indication, width/2, height/2);
+    drawSecond();
     return;
   } 
   
@@ -292,13 +292,13 @@ void draw()
     save(image.path + "/color.bmp");
     drawFrame(img.width*scale, img.height*scale, false);
     save(image.path + "/frame_color.bmp");
-    savedImages.add(image);
   }
   
   //あれば次の画像をとってきてサイズを変える.
   synchronized (images)
-  {
-    image = images.poll(); //からならnullが入る
+  {    
+    image = drawingNo < images.size() ? images.get(drawingNo) : null;
+    drawingNo++;
   }
   
   if( image != null)
@@ -311,14 +311,14 @@ void draw()
 int lastViewNo = -1, viewNo = 0;
 void drawSecond()
 {
-  if(savedImages.size()==0){
+  if(images.size()==0){
     return;
   }
 
-  ImageData data = savedImages.get(viewNo);  
+  ImageData data = images.get(viewNo);  
   PImage img = data.image;
   
-  int desired_w = max( scale*img.width, data.path.length()*7);
+  int desired_w = max( 2*scale*img.width, data.path.length()*7);
   int desired_h = scale*img.height + 30;
   if(desired_w != secondFrame.width || desired_h != secondFrame.height)
   {    
@@ -333,7 +333,8 @@ void drawSecond()
   secondFrame.background(0);
   secondFrame.image(img, 0, 0, scale*img.width, scale*img.height);
   drawFrame(scale*img.width, scale*img.height, true);
-  secondFrame.text(data.path,0,scale*img.height + 15);
+  //secondFrame.text(data.path,0,scale*img.height + 15);
+  secondFrame.text(images.size() + "Images", scale*img.width, secondFrame.height/2);
   secondFrame.redraw();
   lastViewNo = viewNo;
 }
@@ -365,18 +366,19 @@ void drawFrame(int w, int h, boolean sndFrame)
 
 void keyPressed()
 {
-  if( savedImages.size() == 0 || image != null) return;
+  if( images.size() == 0 || image != null) return;
   
   if( key == CODED )
   {
     if(keyCode == RIGHT)
     {
-      viewNo = (viewNo+1) % savedImages.size();
+      viewNo = (viewNo+1) % images.size();
+      println("right");
     }
     
     if(keyCode == LEFT)
     {
-      viewNo = (viewNo + savedImages.size() - 1) % savedImages.size();
+      viewNo = (viewNo + images.size() - 1) % images.size();
     }
   }
 }
