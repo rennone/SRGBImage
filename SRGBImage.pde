@@ -30,7 +30,7 @@ final String Indication = "Drop folder";
 final String Condition  = "Now Calculating";
 ColorTransform tr;
 PImage img;
-boolean saving = false;
+boolean checked = false;
 ArrayList<ImageData> images = new ArrayList<ImageData>();
 //ArrayList<ImageData> savedImages = new ArrayList<ImageData>();
 
@@ -252,7 +252,7 @@ void setup()
         }
       }
       
-      saving = true;
+      checked = true;
     }
   });
   
@@ -277,9 +277,9 @@ void draw()
 {
   background(0);
   
-  if( image == null && images.size() == 0)
+  if(!checked)
   {
-    text(Indication, width/2, height/2);
+    text(images.size() + " images", width/2, height/2);
     drawSecond();
     return;
   } 
@@ -304,7 +304,11 @@ void draw()
   if( image != null)
   {
     ResizeWindow(scale*image.image.width, scale*image.image.height);
+  } else
+  {
+    checked = false;
   }
+  
   drawSecond();
 }
 
