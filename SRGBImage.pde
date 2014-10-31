@@ -205,6 +205,7 @@ void SearchBinary(String folderPath)
   if( tmFolder != null && teFolder != null)
   {
     ImageData img = MakeSRGBImage(tmFolder, teFolder, folderPath);
+    if(img !=null)
     images.push(img);
   }
 }

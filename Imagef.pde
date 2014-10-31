@@ -25,10 +25,10 @@ class Imagef
       for(int j=0; j<this.height; j++)
       {
         //PImageは左上が原点なので, jを反転させる
-        pImage.pixels[(this.height-1-j)*this.width + i] = color(
-        (int)(255*this.pixels[i][j].r),
-        (int)(255*this.pixels[i][j].g), 
-        (int)(255*this.pixels[i][j].b));
+        int r = min( 255, max( 0, (int)(255*this.pixels[i][j].r) ));
+        int g = min( 255, max( 0, (int)(255*this.pixels[i][j].g) ));
+        int b = min( 255, max( 0, (int)(255*this.pixels[i][j].b) )); 
+        pImage.pixels[(this.height-1-j)*this.width + i] = color( r, g, b);
       }
     }
     return pImage;
