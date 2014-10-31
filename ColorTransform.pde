@@ -6,44 +6,44 @@ import java.lang.StringBuffer;
 import java.io.FileWriter;
 class ColorTransform
 {  
-  HashMap<Integer, Float> R, G, B, S;
+  HashMap<Integer, Float> X, Y, Z, S;
   float K;
   int minLambda, maxLambda;
+  
+  public Colorf CIE_ToRGB(float x, float y, float z)
+  {
+    float r =  2.3655*x - 0.8971*y - 0.4683*z;
+    float g = -0.5151*x + 1.4264*y + 0.0887*z;
+    float b =  0.0052*x - 0.0144*y + 1.0089*z;
+   return new Colorf(r,g,b); 
+  }
+  
+  public Colorf D65_ToRGB(float x, float y, float z)
+  {
+    float r =  3.2410*x - 1.5374*y - 0.4986*z;
+    float g = -0.9692*x + 1.8760*y + 0.0416*z;
+    float b =  0.0556*z - 0.2040*y + 1.5070*z;
+    return new Colorf(r,g,b);
+  }
   
   public Colorf CalcRGB(double reflec, Integer lambda)
   {
     if( !S.containsKey(lambda) ) return new Colorf();
     
     float s = (float)S.get(lambda);
-    float r = (float)(K * reflec * R.get(lambda) * s);
-    float g = (float)(K * reflec * G.get(lambda) * s);
-    float b = (float)(K * reflec * B.get(lambda) * s);
-    return new Colorf(r,g,b); 
-  }
-  
-  public void AddRGB(double reflec, Integer lambda, Float r, Float g, Float b)
-  {
-    float s = (float)S.get(lambda);
-    r += K * reflec * R.get(lambda) * s;
-    g += K * reflec * G.get(lambda) * s;
-    b += K * reflec * B.get(lambda) * s;
-  }
-  
-  public void AddRGB(double reflec, Integer lambda, Colorf c)
-  {
-    float s = (float)S.get(lambda);
-    c.r += K * reflec * R.get(lambda) * s;
-    c.g += K * reflec * G.get(lambda) * s;
-    c.b += K * reflec * B.get(lambda) * s;
+    float x = (float)(K * reflec * X.get(lambda) * s);
+    float y = (float)(K * reflec * Y.get(lambda) * s);
+    float z = (float)(K * reflec * Z.get(lambda) * s);
+    return D65_ToRGB(x,y,z); 
   }
   
   float minX = 1000, maxX = 0, minY = 1000, maxY = 0;
   
   public ColorTransform()
   {
-    R = new HashMap<Integer, Float>();
-    G = new HashMap<Integer, Float>();
-    B = new HashMap<Integer, Float>();
+    X = new HashMap<Integer, Float>();
+    Y = new HashMap<Integer, Float>();
+    Z = new HashMap<Integer, Float>();
     S = new HashMap<Integer, Float>();
     K = 0.0;
     String lines[] = loadStrings("XYZS.csv");
@@ -51,19 +51,19 @@ class ColorTransform
     {
       String[] params = split(lines[i], ",");
       int l = parseInt(params[0]);
-      float r = parseFloat(params[1]);
-      float g = parseFloat(params[2]);
-      float b = parseFloat(params[3]);
+      float x = parseFloat(params[1]);
+      float y = parseFloat(params[2]);
+      float z = parseFloat(params[3]);
       float s = parseFloat(params[4]);
-      R.put(l, r);
-      G.put(l, g);
-      B.put(l, b);
+      X.put(l, x);
+      Y.put(l, y);
+      Z.put(l, z);
       S.put(l, s);
-      K += g*s;
+      K += y*s;
       minX = min(minX, l);
       maxX = max(maxX, l);
-      minY = min( minY, min(r, min(g, b)));
-      maxY = max( maxY, max(r, max(g, b)));  
+      minY = min( minY, min(x, min(y, z)));
+      maxY = max( maxY, max(x, max(y, z)));  
     }  
     minLambda = (int)minX;
     maxLambda = (int)maxX;
@@ -77,17 +77,17 @@ class ColorTransform
   {
     float dx = width / (maxX - minX);
     float dy = height /(maxY - minY);
-    for( Integer x : R.keySet() )
+    for( Integer k : X.keySet() )
     {
-      float l = (x-minX)*dx; 
-      float r = (R.get(x)-minY)*dy;
-      float g = (G.get(x)-minY)*dy;
-      float b = (B.get(x)-minY)*dy;
-      float s = (S.get(x)-minY)*dy;
+      float l = (k-minX)*dx; 
+      float x = (X.get(k)-minY)*dy;
+      float y = (Y.get(k)-minY)*dy;
+      float z = (Z.get(k)-minY)*dy;
+      float s = (S.get(k)-minY)*dy;
       
-      point(l, height - r);
-      point(l, height - g);
-      point(l, height - b);
+      point(l, height - x);
+      point(l, height - y);
+      point(l, height - z);
       point(l, height - s);
     }
   }
