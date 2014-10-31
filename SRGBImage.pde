@@ -261,43 +261,82 @@ void setup()
   size(200, 200);
   textAlign(CENTER);
   textSize(32);
+  
+  secondFrame = new PFrame(this);
+  secondFrame.size(400,400);
+    
+  secondFrame.textAlign(LEFT);
+  secondFrame.textSize(12);
 }
 
 ImageData image = null;
 int scale = 2;
+PFrame secondFrame;
 void draw()
 {
   background(0);
-  if( image == null && images.size() == 0 && savedImages.size() == 0)
+
+  
+  if( image == null && images.size() == 0)
   {
     text(images.size() + " is found", width/2, height/2);
+      drawSecond();
     return;
-  }
+  } 
   
   //現在の画像を保存する.  
   if(image != null)
   {
     PImage img = image.image;
-    image(img, 0,0, width, height);
+    this.image(img, 0,0, width, height);
     save(image.path + "/color.bmp");
-    drawFrame(img.width*scale, img.height*scale);
+    drawFrame(img.width*scale, img.height*scale, false);
     save(image.path + "/frame_color.bmp");
     savedImages.add(image);
-  } else
-  {
-    viewSavedImage();
   }
   
   //あれば次の画像をとってきてサイズを変える.
   synchronized (images)
   {
-    image = images.poll();
+    image = images.poll(); //からならnullが入る
   }
   
   if( image != null)
   {
     ResizeWindow(scale*image.image.width, scale*image.image.height);
   }
+  drawSecond();
+}
+
+int lastViewNo = -1, viewNo = 0;
+void drawSecond()
+{
+  if(savedImages.size()==0){
+    return;
+  }
+
+  ImageData data = savedImages.get(viewNo);  
+  PImage img = data.image;
+  
+  int desired_w = max( scale*img.width, data.path.length()*7);
+  int desired_h = scale*img.height + 30;
+  if(desired_w != secondFrame.width || desired_h != secondFrame.height)
+  {    
+    secondFrame.frame.setSize(desired_w + secondFrame.frame.getInsets().left + secondFrame.frame.getInsets().right,
+    desired_h + secondFrame.frame.getInsets().top + secondFrame.frame.getInsets().bottom);
+    secondFrame.resize(desired_w,desired_h);
+    return;
+  }
+ 
+ if( lastViewNo != viewNo)
+{ 
+  secondFrame.background(0);
+  secondFrame.image(img, 0, 0, scale*img.width, scale*img.height);
+  drawFrame(scale*img.width, scale*img.height, true);
+  secondFrame.text(data.path,0,scale*img.height + 15);
+  secondFrame.redraw();
+  lastViewNo = viewNo;
+}
 }
 
 void ResizeWindow(int w, int h)
@@ -306,37 +345,21 @@ void ResizeWindow(int w, int h)
     h + frame.getInsets().top + frame.getInsets().bottom);
     resize(w,h);
 }
-int viewNo = 0;
-void viewSavedImage()
-{
-  if(savedImages.size()==0)  return;
-
-  textAlign(LEFT);
-  textSize(12);
-  ImageData data = savedImages.get(viewNo);  
-  PImage img = data.image;
-  
-  int desired_w = max( scale*img.width, data.path.length()*7);
-  int desired_h = scale*img.height + 30;
-  if(desired_w != width || desired_h != height)
-  {
-    ResizeWindow(desired_w, desired_h);
-    return;
-  }
-  
-  image(img, 0, 0, scale*img.width, scale*img.height);
-  drawFrame(scale*img.width, scale*img.height);
-  text(data.path,0,scale*img.height + 15);
-}
 
 //画面を縦横4分割するように線を引く
-void drawFrame(int w, int h)
+void drawFrame(int w, int h, boolean sndFrame)
 {
   int q_w = w/4;
   int q_h = h/4;
   for(int i=1; i<4; i++){
-    line(q_w*i, 0, q_w*i, h);
-    line(0, q_h*i, w, q_h*i);
+    if(sndFrame){
+      secondFrame.line(q_w*i, 0, q_w*i, h);
+      secondFrame.line(0, q_h*i, w, q_h*i);
+    }
+    else{     
+      line(q_w*i, 0, q_w*i, h);
+      line(0, q_h*i, w, q_h*i);
+    }
   }
 }
 
@@ -356,5 +379,4 @@ void keyPressed()
       viewNo = (viewNo + savedImages.size() - 1) % savedImages.size();
     }
   }
-  
 }
