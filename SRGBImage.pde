@@ -133,9 +133,15 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
       {        
         // reflecが theta[deg], l+st_lambda [nm], phi[deg]の時の反射率を表す
         double reflec = sqrEth[index+phi] / sum;
-        //reflecからRGB値を計算して足し合わせる.
-        srgbImage.pixels[theta][phi].Add( tr.CalcRGB(reflec, l+st_lambda) );
+        //reflecからXYZ値を計算して足し合わせる.
+        srgbImage.pixels[theta][phi].Add( tr.CalcXYZ(reflec, l+st_lambda) );
       }
+    }
+    //RGB変換
+    for(int phi=0; phi<=180; phi++){
+      srgbImage.pixels[theta][phi] = tr.D65_ToRGB(srgbImage.pixels[theta][phi].r, 
+      srgbImage.pixels[theta][phi].g,
+      srgbImage.pixels[theta][phi].b);
     }
   }
 
@@ -370,7 +376,9 @@ void drawFrame(int w, int h, boolean sndFrame)
 
 void keyPressed()
 {
-  if( images.size() == 0 || image != null) return;
+  
+  if( images.size() == 0)
+  return;
   
   if( key == CODED )
   {
