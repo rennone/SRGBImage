@@ -16,16 +16,23 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Arrays;
 import java.util.Stack;
-
-DropTarget dropTarget;
-final String Indication = "Drop folder";
-final String Condition  = "Now Calculating";
-
+import java.util.Queue;
+import java.util.ArrayDeque;
 class ImageData
 {
   public PImage image;
   public String path;
 }
+
+
+DropTarget dropTarget;
+final String Indication = "Drop folder";
+final String Condition  = "Now Calculating";
+ColorTransform tr;
+PImage img;
+boolean saving = false;
+ArrayDeque<ImageData> images = new ArrayDeque<ImageData>();
+ArrayList<ImageData> savedImages = new ArrayList<ImageData>();
 
 // バイナリからノルム(2乗強度)データを読み込み
 double[] GetNormDataDouble(String path)
@@ -161,7 +168,6 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
   return data;
 }
 
-Stack<ImageData> images = new Stack<ImageData>();
 // TM, TEフォルダのあるディレクトリまでネストしていく
 void SearchBinary(String folderPath)
 {  
@@ -205,16 +211,15 @@ void SearchBinary(String folderPath)
   if( tmFolder != null && teFolder != null)
   {
     ImageData img = MakeSRGBImage(tmFolder, teFolder, folderPath);
-    if(img !=null)
-    images.push(img);
+
+    if(img !=null){
+      synchronized(images){
+        images.addLast(img);
+      }      
+    }
   }
 }
 
-ColorTransform tr;
-Imagef testImg;
-PImage img;
-ImageData image = null;
-boolean saving = false;
 void setup()
 {
   tr = new ColorTransform();
@@ -253,16 +258,19 @@ void setup()
   
   strokeWeight(1);
   stroke(255);
-  size(400, 400);
+  size(200, 200);
   textAlign(CENTER);
   textSize(32);
 }
 
+ImageData image = null;
+int scale = 2;
 void draw()
 {
   background(0);
-  if( !saving ){
-    text(Indication, width/2, height/2);
+  if( image == null && images.size() == 0 && savedImages.size() == 0)
+  {
+    text(images.size() + " is found", width/2, height/2);
     return;
   }
   
@@ -270,33 +278,83 @@ void draw()
   if(image != null)
   {
     PImage img = image.image;
-    //img.save(image.path + "/color.bmp");
     image(img, 0,0, width, height);
     save(image.path + "/color.bmp");
-    drawFrame();
+    drawFrame(img.width*scale, img.height*scale);
     save(image.path + "/frame_color.bmp");
+    savedImages.add(image);
+  } else
+  {
+    viewSavedImage();
   }
   
-  //次の画像がなければDropFolderの状態に戻す.
-  if( images.empty() )
+  //あれば次の画像をとってきてサイズを変える.
+  synchronized (images)
   {
-    saving = false;
+    image = images.poll();
+  }
+  
+  if( image != null)
+  {
+    ResizeWindow(scale*image.image.width, scale*image.image.height);
+  }
+}
+
+void ResizeWindow(int w, int h)
+{
+  frame.setSize(w + frame.getInsets().left + frame.getInsets().right,
+    h + frame.getInsets().top + frame.getInsets().bottom);
+    resize(w,h);
+}
+int viewNo = 0;
+void viewSavedImage()
+{
+  if(savedImages.size()==0)  return;
+
+  textAlign(LEFT);
+  textSize(12);
+  ImageData data = savedImages.get(viewNo);  
+  PImage img = data.image;
+  
+  int desired_w = max( scale*img.width, data.path.length()*7);
+  int desired_h = scale*img.height + 30;
+  if(desired_w != width || desired_h != height)
+  {
+    ResizeWindow(desired_w, desired_h);
     return;
   }
   
-  //次の画像をとってきてサイズを変える.
-  image = images.pop();
-  resize(2*image.image.width, 2*image.image.height);
+  image(img, 0, 0, scale*img.width, scale*img.height);
+  drawFrame(scale*img.width, scale*img.height);
+  text(data.path,0,scale*img.height + 15);
 }
 
 //画面を縦横4分割するように線を引く
-void drawFrame()
+void drawFrame(int w, int h)
 {
-  int q_w = width/4;
-  int q_h = height/4;
+  int q_w = w/4;
+  int q_h = h/4;
   for(int i=1; i<4; i++){
-    line(q_w*i, 0, q_w*i, height);
-    line(0, q_h*i, width, q_h*i);
+    line(q_w*i, 0, q_w*i, h);
+    line(0, q_h*i, w, q_h*i);
   }
 }
 
+void keyPressed()
+{
+  if( savedImages.size() == 0 || image != null) return;
+  
+  if( key == CODED )
+  {
+    if(keyCode == RIGHT)
+    {
+      viewNo = (viewNo+1) % savedImages.size();
+    }
+    
+    if(keyCode == LEFT)
+    {
+      viewNo = (viewNo + savedImages.size() - 1) % savedImages.size();
+    }
+  }
+  
+}

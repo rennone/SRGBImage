@@ -26,6 +26,20 @@ class ColorTransform
     return new Colorf(r,g,b);
   }
   
+  // X, Y, Z等色系で返す.
+  public Colorf CalcXYZ(double reflec, Integer lambda)
+  {
+        if( !S.containsKey(lambda) ) return new Colorf();
+    
+    float s = (float)S.get(lambda);
+    float x = (float)(K * reflec * X.get(lambda) * s);
+    float y = (float)(K * reflec * Y.get(lambda) * s);
+    float z = (float)(K * reflec * Z.get(lambda) * s);
+    
+    return new Colorf(x,y,z);
+  }
+  
+  // RGB系で返す(行列演算をするので少し遅い)
   public Colorf CalcRGB(double reflec, Integer lambda)
   {
     if( !S.containsKey(lambda) ) return new Colorf();
