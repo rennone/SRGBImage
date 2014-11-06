@@ -282,11 +282,12 @@ void setup()
       for(File f : fileNameList){
         if( f.isDirectory() )
         {
+          checked = false;
           SearchBinary(f.getAbsolutePath());
         }
       }
       
-      //checked = true;
+      checked = true;
     }
   });
   
@@ -301,6 +302,8 @@ void setup()
     
   secondFrame.textAlign(LEFT);
   secondFrame.textSize(20);
+  
+  checked = true;
 }
 
 ImageData image = null;
@@ -311,15 +314,14 @@ int imageNum = 0;
 void draw()
 {
   background(0);
-  /*
-  if(!checked)
+  
+  if(checked && images.size() == 0 && image == null)
   {
-    text(images.size() + " images", width/2, height/2);
-    text( (abort ? "stop" : "waiting") +"\n Enter", width/2, 2*height/3 );
+    text("DropFolder", width/2, height/2);
     drawSecond();
     return;
   } 
-  */
+  
   //現在の画像を保存する.  
   if(image != null)
   {
@@ -351,12 +353,16 @@ void draw()
 }
 
 int lastViewNo = -1, viewNo = 0;
+int lastImageNum = -1;
 void drawSecond()
 {
-  secondFrame.background(0);
-  secondFrame.text("Sum is  " +imageNum + " images", 0, 30);
-  secondFrame.text("Waiting " + images.size() + " images", 0, 50);
-  secondFrame.redraw();
+  if( lastImageNum != imageNum)
+  {
+    secondFrame.background(0);
+    secondFrame.text("Sum is  " +imageNum + " images", 0, 30);
+    secondFrame.redraw();
+    lastImageNum = imageNum;
+  }
   return;
  
   
