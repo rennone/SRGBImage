@@ -68,6 +68,8 @@ HashMap<String, File> GetBinaryFiles(File f)
   return binaries;
 }
 
+double[] reflec_sqr = null, reflec_len = null, reflec_len_sep = null;
+
 // sRGB画像の生成
 ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
 {
@@ -117,10 +119,18 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
     double[] sqrEph = GetNormDataDouble(teBinaries.get(str).getAbsolutePath());
     
     //反射率に光のスペクトル, 強度, TMとTEの強度の足しあわせの3パターンで試してみる.
+    /*
     double[] reflec_sqr = new double[sqrEth.length];     // r = Eth^2 + Eph^2
     double[] reflec_len = new double[sqrEth.length];     // r = sqrt(Eth^2+Eph^2)
     double[] reflec_len_sep = new double[sqrEth.length]; // r = |Eth| + |Eph|
-    
+    */
+    //毎回生成するのは遅いので,最初の一回だけ
+    if(reflec_sqr == null)
+    {
+      reflec_sqr = new double[sqrEth.length];     // r = Eth^2 + Eph^2
+      reflec_len = new double[sqrEth.length];     // r = sqrt(Eth^2+Eph^2)
+      reflec_len_sep = new double[sqrEth.length]; // r = |Eth| + |Eph|
+    }
     //EsqrthとsqrEphから反射率を計算
     for(int i=0; i<sqrEth.length; i++){
       reflec_sqr[i]     = sqrEth[i] + sqrEph[i];
