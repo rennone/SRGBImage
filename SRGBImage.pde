@@ -18,20 +18,22 @@ import java.util.Arrays;
 import java.util.Stack;
 import java.util.Queue;
 import java.util.ArrayDeque;
+
 class ImageData
 {
   public PImage image;
   public String path;
 }
 
-
 DropTarget dropTarget;
 final String Indication = "Drop folder";
 final String Condition  = "Now Calculating";
 ColorTransform tr;
+
 PImage img;
 boolean checked = false;
-ArrayList<ImageData> images = new ArrayList<ImageData>();
+//ArrayList<ImageData> images = new ArrayList<ImageData>();
+ArrayDeque<ImageData> images = new ArrayDeque<ImageData>();
 boolean abort = false;
 
 // バイナリからノルム(2乗強度)データを読み込み
@@ -65,7 +67,6 @@ HashMap<String, File> GetBinaryFiles(File f)
   }
   return binaries;
 }
-
 
 // sRGB画像の生成
 ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
@@ -115,44 +116,47 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
     double[] sqrEth = GetNormDataDouble(tmBinaries.get(str).getAbsolutePath());
     double[] sqrEph = GetNormDataDouble(teBinaries.get(str).getAbsolutePath());
     
+    //反射率に光のスペクトル, 強度, TMとTEの強度の足しあわせの3パターンで試してみる.
     double[] reflec_sqr = new double[sqrEth.length];     // r = Eth^2 + Eph^2
     double[] reflec_len = new double[sqrEth.length];     // r = sqrt(Eth^2+Eph^2)
     double[] reflec_len_sep = new double[sqrEth.length]; // r = |Eth| + |Eph|
-    //EthとEphを足し合わせる.
+    
+    //EsqrthとsqrEphから反射率を計算
     for(int i=0; i<sqrEth.length; i++){
-      reflec_sqr[i] = sqrEth[i] + sqrEph[i];
-      reflec_len[i] = Math.sqrt(sqrEth[i] + sqrEph[i]);
-      reflec_len_sep = Math.sqrt(sqrEth[i]) + Math.sqrt(sqrEph[i]);
-      sqrEth[i] += sqrEph[i];
-      sqrEth[i] = Math.sqrt(sqrEth[i]);
+      reflec_sqr[i]     = sqrEth[i] + sqrEph[i];
+      reflec_len[i]     = Math.sqrt(sqrEth[i] + sqrEph[i]);
+      reflec_len_sep[i] = Math.sqrt(sqrEth[i]) + Math.sqrt(sqrEph[i]);
     }
     
     //各派長データを反射角度phiで正規化する.
     for(int l=0; l<=en_lambda - st_lambda; l++){
       int index = l*360;
       double sum = 0;
-      double sum_sqr = sum_len = sum_len_sep = 0;
+      double sum_sqr=0, sum_len = 0, sum_len_sep = 0;
       //全角度で正規化
       for(int phi=0; phi<360; phi++)
       {
-        sum += sqrEth[index + phi]; 
+        //sum += sqrEth[index + phi]; 
         sum_sqr += reflec_sqr[index+phi];
         sum_len += reflec_len[index+phi];
         sum_len_sep += reflec_len_sep[index+phi];
       }
+      
       //画像にするのは180°まで
       for(int phi=0; phi<=180; phi++)
       {        
         double ref_sqr = reflec_sqr[index+phi] / sum_sqr;
         double ref_len = reflec_len[index+phi] / sum_len;
         double ref_len_sep = reflec_len_sep[index+phi] / sum_len_sep;
+        
         // reflecが theta[deg], l+st_lambda [nm], phi[deg]の時の反射率を表す
-        double reflec = sqrEth[index+phi] / sum;
+        double reflec = ref_len;
         
         //reflecからXYZ値を計算して足し合わせる.
         srgbImage.pixels[theta][phi].Add( tr.CalcXYZ(reflec, l+st_lambda) );
       }
     }
+    
     //RGB変換
     for(int phi=0; phi<=180; phi++){
       srgbImage.pixels[theta][phi] = tr.D65_ToRGB(srgbImage.pixels[theta][phi].r, 
@@ -180,9 +184,7 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
       }
     }
   }
-  //println("saving");
-  //srgbImage.ToPImage().save(parentPath + "/color.bmp");
-  //println("finish");
+
   ImageData data = new ImageData();
   data.image = srgbImage.ToPImage();
   data.path  = parentPath;
@@ -207,6 +209,7 @@ void SearchBinary(String folderPath)
     {
       File f = fileArray[i];
       if( !f.isDirectory() ){
+        
         if(f.getName().equals("abs_frame_color.bmp"))
         {
           println("skip this file");
@@ -244,7 +247,8 @@ void SearchBinary(String folderPath)
 
     if(img !=null){
       synchronized(images){
-        images.add(img);
+        //images.add(img);
+        images.addLast(img);
       }      
     }
   }
@@ -296,13 +300,14 @@ void setup()
   secondFrame.size(400,400);
     
   secondFrame.textAlign(LEFT);
-  secondFrame.textSize(12);
+  secondFrame.textSize(20);
 }
 
 ImageData image = null;
 int scale = 2;
 PFrame secondFrame;
 int drawingNo = 0;
+int imageNum = 0;
 void draw()
 {
   background(0);
@@ -323,12 +328,14 @@ void draw()
     save(image.path + "/abs_color.bmp");
     drawFrame(img.width*scale, img.height*scale, false);
     save(image.path + "/abs_frame_color.bmp");
+    imageNum++;
   }
   
   //あれば次の画像をとってきてサイズを変える.
   synchronized (images)
   {    
-    image = drawingNo < images.size() ? images.get(drawingNo) : null;
+    //image = drawingNo < images.size() ? images.get(drawingNo) : null
+    image = images.pollFirst();
     drawingNo++;
   }
   
@@ -346,10 +353,14 @@ void draw()
 int lastViewNo = -1, viewNo = 0;
 void drawSecond()
 {
-  if(images.size()==0){
-    return;
-  }
-
+  secondFrame.background(0);
+  secondFrame.text("Sum is  " +imageNum + " images", 0, 30);
+  secondFrame.text("Remain " + images.size() + " images", 0, 50);
+  //secondFrame.text( (abort ? "stop" : "waiting") +" Enter", 0, 70 );
+  return;
+ 
+  
+/*
   ImageData data = images.get(viewNo);  
   PImage img = data.image;
   
@@ -373,6 +384,7 @@ void drawSecond()
   secondFrame.redraw();
   lastViewNo = viewNo;
 }
+*/
 }
 
 void ResizeWindow(int w, int h)
