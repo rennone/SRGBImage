@@ -356,7 +356,7 @@ void drawSecond()
   secondFrame.background(0);
   secondFrame.text("Sum is  " +imageNum + " images", 0, 30);
   secondFrame.text("Waiting " + images.size() + " images", 0, 50);
-  //secondFrame.text( (abort ? "stop" : "waiting") +" Enter", 0, 70 );
+  secondFrame.redraw();
   return;
  
   
