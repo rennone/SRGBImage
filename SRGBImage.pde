@@ -32,7 +32,7 @@ ColorTransform tr;
 PImage img;
 boolean checked = false;
 ArrayList<ImageData> images = new ArrayList<ImageData>();
-//ArrayList<ImageData> savedImages = new ArrayList<ImageData>();
+boolean abort = false;
 
 // バイナリからノルム(2乗強度)データを読み込み
 double[] GetNormDataDouble(String path)
@@ -114,25 +114,41 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
     
     double[] sqrEth = GetNormDataDouble(tmBinaries.get(str).getAbsolutePath());
     double[] sqrEph = GetNormDataDouble(teBinaries.get(str).getAbsolutePath());
-
+    
+    double[] reflec_sqr = new double[sqrEth.length];     // r = Eth^2 + Eph^2
+    double[] reflec_len = new double[sqrEth.length];     // r = sqrt(Eth^2+Eph^2)
+    double[] reflec_len_sep = new double[sqrEth.length]; // r = |Eth| + |Eph|
     //EthとEphを足し合わせる.
     for(int i=0; i<sqrEth.length; i++){
+      reflec_sqr[i] = sqrEth[i] + sqrEph[i];
+      reflec_len[i] = Math.sqrt(sqrEth[i] + sqrEph[i]);
+      reflec_len_sep = Math.sqrt(sqrEth[i]) + Math.sqrt(sqrEph[i]);
       sqrEth[i] += sqrEph[i];
+      sqrEth[i] = Math.sqrt(sqrEth[i]);
     }
+    
     //各派長データを反射角度phiで正規化する.
     for(int l=0; l<=en_lambda - st_lambda; l++){
       int index = l*360;
       double sum = 0;
+      double sum_sqr = sum_len = sum_len_sep = 0;
       //全角度で正規化
       for(int phi=0; phi<360; phi++)
       {
         sum += sqrEth[index + phi]; 
+        sum_sqr += reflec_sqr[index+phi];
+        sum_len += reflec_len[index+phi];
+        sum_len_sep += reflec_len_sep[index+phi];
       }
       //画像にするのは180°まで
       for(int phi=0; phi<=180; phi++)
       {        
+        double ref_sqr = reflec_sqr[index+phi] / sum_sqr;
+        double ref_len = reflec_len[index+phi] / sum_len;
+        double ref_len_sep = reflec_len_sep[index+phi] / sum_len_sep;
         // reflecが theta[deg], l+st_lambda [nm], phi[deg]の時の反射率を表す
         double reflec = sqrEth[index+phi] / sum;
+        
         //reflecからXYZ値を計算して足し合わせる.
         srgbImage.pixels[theta][phi].Add( tr.CalcXYZ(reflec, l+st_lambda) );
       }
@@ -170,13 +186,15 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
   ImageData data = new ImageData();
   data.image = srgbImage.ToPImage();
   data.path  = parentPath;
-  data.image.save(data.path + "/original_color.bmp");
+  data.image.save(data.path + "/abs_original_color.bmp");
   return data;
 }
 
 // TM, TEフォルダのあるディレクトリまでネストしていく
 void SearchBinary(String folderPath)
 {  
+  
+  if(abort) return;  //途中で中断用
   String TM_FOLDER = "TM_UPML";
   String TE_FOLDER = "TE_UPML"; 
   File dir = new File(folderPath);
@@ -188,8 +206,14 @@ void SearchBinary(String folderPath)
     for(int i = 0; i < fileArray.length; i++) 
     {
       File f = fileArray[i];
-      if( !f.isDirectory() )    continue;
-      
+      if( !f.isDirectory() ){
+        if(f.getName().equals("abs_frame_color.bmp"))
+        {
+          println("skip this file");
+          return;
+        }
+        continue;
+      }  
       //TMフォルダを見つけた
       if( f.getName().equals(TM_FOLDER) )
       {
@@ -286,6 +310,7 @@ void draw()
   if(!checked)
   {
     text(images.size() + " images", width/2, height/2);
+    text( (abort ? "stop" : "waiting") +"\n Enter", width/2, 2*height/3 );
     drawSecond();
     return;
   } 
@@ -295,9 +320,9 @@ void draw()
   {
     PImage img = image.image;
     this.image(img, 0,0, width, height);
-    save(image.path + "/color.bmp");
+    save(image.path + "/abs_color.bmp");
     drawFrame(img.width*scale, img.height*scale, false);
-    save(image.path + "/frame_color.bmp");
+    save(image.path + "/abs_frame_color.bmp");
   }
   
   //あれば次の画像をとってきてサイズを変える.
@@ -376,12 +401,9 @@ void drawFrame(int w, int h, boolean sndFrame)
 
 void keyPressed()
 {
-  
-  if( images.size() == 0)
-  return;
-  
   if( key == CODED )
   {
+     if( images.size() == 0)  return;
     if(keyCode == RIGHT)
     {
       viewNo = (viewNo+1) % images.size();
@@ -393,4 +415,5 @@ void keyPressed()
       viewNo = (viewNo + images.size() - 1) % images.size();
     }
   }
+  else if(key == ENTER) abort = !abort;
 }
