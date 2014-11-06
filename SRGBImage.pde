@@ -286,7 +286,7 @@ void setup()
         }
       }
       
-      checked = true;
+      //checked = true;
     }
   });
   
@@ -311,7 +311,7 @@ int imageNum = 0;
 void draw()
 {
   background(0);
-  
+  /*
   if(!checked)
   {
     text(images.size() + " images", width/2, height/2);
@@ -319,7 +319,7 @@ void draw()
     drawSecond();
     return;
   } 
-  
+  */
   //現在の画像を保存する.  
   if(image != null)
   {
@@ -355,7 +355,7 @@ void drawSecond()
 {
   secondFrame.background(0);
   secondFrame.text("Sum is  " +imageNum + " images", 0, 30);
-  secondFrame.text("Remain " + images.size() + " images", 0, 50);
+  secondFrame.text("Waiting " + images.size() + " images", 0, 50);
   //secondFrame.text( (abort ? "stop" : "waiting") +" Enter", 0, 70 );
   return;
  
