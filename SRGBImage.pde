@@ -25,6 +25,13 @@ class ImageData
   public String path;
 }
 
+final int LEN = 0, SQR = 1, SEP = 2;
+final String[] Prefixes = {"len_", "sqr_", "sep_"};
+
+final int prefix = SQR;  //画像の接頭語
+
+final String ImageFileNamePrefix = "Abs";
+
 DropTarget dropTarget;
 final String Indication = "Drop folder";
 final String Condition  = "Now Calculating";
@@ -131,6 +138,8 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
       reflec_len = new double[sqrEth.length];     // r = sqrt(Eth^2+Eph^2)
       reflec_len_sep = new double[sqrEth.length]; // r = |Eth| + |Eph|
     }
+    
+    //全コピー
     //EsqrthとsqrEphから反射率を計算
     for(int i=0; i<sqrEth.length; i++){
       reflec_sqr[i]     = sqrEth[i] + sqrEph[i];
@@ -160,8 +169,18 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
         double ref_len_sep = reflec_len_sep[index+phi] / sum_len_sep;
         
         // reflecが theta[deg], l+st_lambda [nm], phi[deg]の時の反射率を表す
-        double reflec = ref_len;
-        
+        double reflec;
+        switch(prefix){
+          case LEN:
+            reflec = ref_len; break;
+          case SQR:
+            reflec = ref_sqr; break;
+          case SEP:
+            reflec = ref_len_sep; break;
+          default : 
+            reflec = ref_sqr;  
+        }
+     
         //reflecからXYZ値を計算して足し合わせる.
         srgbImage.pixels[theta][phi].Add( tr.CalcXYZ(reflec, l+st_lambda) );
       }
@@ -169,7 +188,8 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
     
     //RGB変換
     for(int phi=0; phi<=180; phi++){
-      srgbImage.pixels[theta][phi] = tr.D65_ToRGB(srgbImage.pixels[theta][phi].r, 
+      srgbImage.pixels[theta][phi] = tr.D65_ToRGB(
+      srgbImage.pixels[theta][phi].r, 
       srgbImage.pixels[theta][phi].g,
       srgbImage.pixels[theta][phi].b);
     }
@@ -198,7 +218,7 @@ ImageData MakeSRGBImage(File TMFolder, File TEFolder, String parentPath)
   ImageData data = new ImageData();
   data.image = srgbImage.ToPImage();
   data.path  = parentPath;
-  data.image.save(data.path + "/abs_original_color.bmp");
+  data.image.save(data.path + "/" + Prefixes[prefix] + "original_color.bmp");
   return data;
 }
 
@@ -220,7 +240,7 @@ void SearchBinary(String folderPath)
       File f = fileArray[i];
       if( !f.isDirectory() ){
         
-        if(f.getName().equals("abs_frame_color.bmp"))
+        if(f.getName().equals(Prefixes[prefix] + "frame_color.bmp"))
         {
           println("skip this file");
           return;
@@ -297,7 +317,7 @@ void setup()
         }
       }
       
-      checked = true;
+      
     }
   });
   
@@ -324,8 +344,8 @@ int imageNum = 0;
 void draw()
 {
   background(0);
-  
-  if(checked && images.size() == 0 && image == null)
+
+  if(images.size() == 0 && image == null)
   {
     text("DropFolder", width/2, height/2);
     drawSecond();
@@ -337,9 +357,9 @@ void draw()
   {
     PImage img = image.image;
     this.image(img, 0,0, width, height);
-    save(image.path + "/abs_color.bmp");
+    save(image.path + "/" + Prefixes[prefix] + "color.bmp");
     drawFrame(img.width*scale, img.height*scale, false);
-    save(image.path + "/abs_frame_color.bmp");
+    save(image.path+ "/" + Prefixes[prefix] + "frame_color.bmp");
     imageNum++;
   }
   
